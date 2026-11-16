@@ -1,15 +1,21 @@
 """Ana sayfa: proje tanıtımı ve ilçe bazlı su tüketimi analizi (Beyza)."""
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # repo kökü: src/ içe aktarılabilsin
 
 import numpy as np
 import pandas as pd
 import streamlit as st
+
+from src.arkaplan import arka_plan
 
 KOK = Path(__file__).resolve().parents[1]
 # 2023 dosyasında bazı ilçe adları kısaltılmış
 AD_DUZELT = {"B.ÇEKMECE": "BÜYÜKÇEKMECE", "K.ÇEKMECE": "KÜÇÜKÇEKMECE", "G.O.PAŞA": "GAZİOSMANPAŞA"}
 
 st.set_page_config(page_title="İstanbul Su Paneli", page_icon="💧", layout="wide")
+arka_plan("istanbul_bogaz.jpg")
 st.title("💧 İstanbul Baraj Doluluk ve Su Tüketimi Paneli")
 st.markdown(
     "**Ana konu:** İstanbul barajlarının 30 gün sonraki doluluk oranını tahmin etmek ve kritik seviye için erken uyarı vermek. "

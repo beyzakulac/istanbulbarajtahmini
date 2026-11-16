@@ -9,10 +9,12 @@ import pandas as pd
 import streamlit as st
 
 from src.asistan import BarajAraclari, gemini_cevap, kural_tabanli_cevap
+from src.arkaplan import arka_plan
 
 KOK = Path(__file__).resolve().parents[2]
 
 st.set_page_config(page_title="Baraj Asistanı", page_icon="🤖", layout="wide")
+arka_plan("kiz_kulesi.jpg")
 st.title("🤖 Baraj Asistanı (AI Agent)")
 st.markdown(
     "Sorunuzu Türkçe yazın. Asistan soruyu anlar, **hangi aracı kullanacağına kendisi karar verir** "

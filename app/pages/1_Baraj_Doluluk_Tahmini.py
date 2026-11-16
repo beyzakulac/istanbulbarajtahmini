@@ -11,10 +11,12 @@ import streamlit as st
 from src.degerlendir import UFUK, bol, metrikler
 from src.ozellikler import model_verisi, modeller
 from src.veri import birlesik_veri
+from src.arkaplan import arka_plan
 
 KOK = Path(__file__).resolve().parents[2]
 
 st.set_page_config(page_title="Baraj Doluluk Tahmini", page_icon="🌊", layout="wide")
+arka_plan("baraj.jpg")
 st.title("🌊 İstanbul Baraj Doluluk Tahmini ve Erken Uyarı")
 st.markdown(
     f"Bugünkü doluluk, son 7/30/90 günün yağışı, su tüketimi ve mevsim bilgisiyle **{UFUK} gün sonraki** "
