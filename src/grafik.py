@@ -16,18 +16,22 @@ TURKCE_ZAMAN = {
 }
 
 
-def turkce_cizgi_grafik(tablo, y_etiketi):
-    """st.line_chart yerine: index tarih, her sütun bir çizgi; eksen ve ipucu Türkçe."""
+def turkce_cizgi_grafik(tablo, y_etiketi, yillik=False):
+    """st.line_chart yerine: index tarih, her sütun bir çizgi; eksen ve ipucu Türkçe.
+    yillik=True: eksende ve ipucunda sadece yıl yazar (ör. 2015)."""
+    if isinstance(tablo, pd.Series):
+        tablo = tablo.to_frame()
+    eksen, adim, ipucu = ("%Y", "year", "%Y") if yillik else ("%b %Y", "month", "%d %B %Y")
     uzun = tablo.reset_index().melt(id_vars=tablo.index.name or "index", var_name="Seri", value_name="Değer")
     tarih_sutunu = tablo.index.name or "index"
     grafik = (
         alt.Chart(uzun)
         .mark_line()
         .encode(
-            x=alt.X(f"{tarih_sutunu}:T", title=None, axis=alt.Axis(format="%b %Y", tickCount="month")),
+            x=alt.X(f"{tarih_sutunu}:T", title=None, axis=alt.Axis(format=eksen, tickCount=adim)),
             y=alt.Y("Değer:Q", title=y_etiketi),
             color=alt.Color("Seri:N", title=None, legend=alt.Legend(orient="bottom")),
-            tooltip=[alt.Tooltip(f"{tarih_sutunu}:T", title="Tarih", format="%d %B %Y"),
+            tooltip=[alt.Tooltip(f"{tarih_sutunu}:T", title="Tarih", format=ipucu),
                      alt.Tooltip("Seri:N", title="Seri"),
                      alt.Tooltip("Değer:Q", title=y_etiketi, format=".2f")],
         )
