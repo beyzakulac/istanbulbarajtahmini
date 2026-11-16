@@ -1,8 +1,8 @@
-"""Ana sayfa: proje tanıtımı ve ilçe bazlı su tüketimi analizi (Beyza)."""
+
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # repo kökü: src/ içe aktarılabilsin
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  
 
 import numpy as np
 import pandas as pd
@@ -11,17 +11,13 @@ import streamlit as st
 from src.arkaplan import arka_plan
 
 KOK = Path(__file__).resolve().parents[1]
-# 2023 dosyasında bazı ilçe adları kısaltılmış
+
 AD_DUZELT = {"B.ÇEKMECE": "BÜYÜKÇEKMECE", "K.ÇEKMECE": "KÜÇÜKÇEKMECE", "G.O.PAŞA": "GAZİOSMANPAŞA"}
 
-st.set_page_config(page_title="İstanbul Su Paneli", page_icon="💧", layout="wide")
+st.set_page_config(page_title="İstanbul Su Paneli", layout="wide")
 arka_plan("istanbul_bogaz.jpg")
-st.title("💧 İstanbul Baraj Doluluk ve Su Tüketimi Paneli")
-st.markdown(
-    "**Ana konu:** İstanbul barajlarının 30 gün sonraki doluluk oranını tahmin etmek ve kritik seviye için erken uyarı vermek. "
-    "Bunun için soldaki menüden **Baraj Doluluk Tahmini** sayfasını açın.\n\n"
-    "Bu sayfa ise **ek analiz** olarak ilçe bazlı yıllık su tüketimini inceler."
-)
+st.title("İstanbul Baraj Doluluk ve Su Tüketimi Paneli")
+
 
 
 @st.cache_data
@@ -37,20 +33,16 @@ def yillik_tuketim():
     aylik["İLÇELER"] = aylik["İLÇELER"].str.strip().replace(AD_DUZELT)
     aylik = aylik[aylik["İLÇELER"] != "GENEL TOPLAM"].set_index("İLÇELER")
     yillik[2023] = aylik[[str(a) for a in range(202301, 202313)]].sum(axis=1)
-    return yillik / 1e6   # milyon m³
+    return yillik / 1e6   
 
 
 yillik = yillik_tuketim()
 YILLAR = list(range(2011, 2023))
 
-st.info(
-    "ℹ️ İlçe tüketim verisi **yıllık** olarak yayımlanıyor (2023 hariç, o yıl aylık). Bu yüzden analizi yıllık yapıyoruz. "
-    "Yıllık toplamı günlere bölüp günlük tahmin yapmak, her gün aynı değeri tekrar eden yapay bir seri üretir; "
-    "böyle bir seride model gerçekte bir şey öğrenmeden mükemmel görünür."
-)
 
-# --- 1. Seçilen ilçenin yıllık tüketimi ---
-st.header("1. İlçe bazında yıllık tüketim")
+
+# ---  Seçilen ilçe için yıllık tüketim miktarı ---
+st.header(" İlçe Bazındaki Yıllık Tüketim Miktarı")
 ilce = st.selectbox("İlçe seçin", sorted(yillik.index), index=sorted(yillik.index).index("ADALAR"))
 seri = yillik.loc[ilce, YILLAR + [2023]].rename("Tüketim (milyon m³)")
 seri.index = pd.to_datetime([f"{y}-01-01" for y in seri.index])
@@ -61,28 +53,21 @@ c1, c2 = st.columns(2)
 c1.metric("2022 tüketimi", f"{yillik.loc[ilce, 2022]:.2f} milyon m³")
 c2.metric("2011 → 2022 değişim", f"%{artis:+.0f}")
 
-# --- 2. En çok tüketen ilçeler ---
-st.header("2. 2022'de en çok su tüketen ilçeler")
+# ---  En çok tüketim yapan ilçeler ---
+st.header(" 2022'de en çok su tüketen ilçeler")
 st.bar_chart(yillik[2022].sort_values(ascending=False).head(15), horizontal=True, x_label="Milyon m³")
 
-# --- 3. 2023 tahmini: trend modeli taban modeli geçebiliyor mu? ---
-st.header("3. 2023 tüketim tahmini: basit modeller")
-st.markdown(
-    "Her ilçe için 2011–2022 verisiyle 2023 tüketimini iki yolla tahmin edip gerçek 2023 değeriyle karşılaştırıyoruz:\n"
-    "- **Taban (değişmez):** 2023 = 2022\n"
-    "- **Doğrusal trend:** 2011–2022 yıllarına düz bir çizgi uydurup 2023'e uzatmak"
-)
+# ---  2023 tahmini: trend modeli taban modeli geçebiliyor mu? ---
+st.header(" 2023 Yılı İçin Tüketim Tahmini")
+
 trend = yillik[YILLAR].apply(lambda s: np.polyval(np.polyfit(YILLAR, s.values, 1), 2023), axis=1)
 gercek = yillik[2023]
 mape = lambda t: (abs(t - gercek) / gercek).mean() * 100
 sonuc = pd.DataFrame({"Ortalama yüzde hata (MAPE)": [mape(yillik[2022]), mape(trend)]},
                      index=["Taban: 2023 = 2022", "Doğrusal trend"])
 st.dataframe(sonuc.style.format("%{:.1f}"), width="content")
-st.caption(
-    "Bulgu: yıllık ilçe tüketimi yıldan yıla çok az değişiyor; bu yüzden 'geçen yılın aynısı' tahmini trend modelinden "
-    "daha isabetli. Karmaşık bir model kurmadan önce basit bir tabanla karşılaştırmanın neden önemli olduğunu gösteriyor."
-)
+
 detay = pd.DataFrame({"2022": yillik[2022], "Gerçek 2023": gercek, "Taban tahmini": yillik[2022], "Trend tahmini": trend})
 st.dataframe(detay.loc[[ilce]].style.format("{:.2f}"), width="stretch")
 
-st.caption("Veri: İBB Açık Veri Portalı, ilçe bazında su tüketim miktarları (m³). Grafiklerde milyon m³ kullanılmıştır.")
+st.caption("Veriseti İBB Açık Veri Portalı'dan alınmıştır. Grafiklerde milyon m3 kullanılmıştır.")
