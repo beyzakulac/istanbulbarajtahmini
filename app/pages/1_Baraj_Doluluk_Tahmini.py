@@ -11,6 +11,7 @@ from src.degerlendir import UFUK, bol, metrikler
 from src.ozellikler import model_verisi, modeller
 from src.veri import birlesik_veri
 from src.arkaplan import arka_plan
+from src.grafik import turkce_cizgi_grafik
 
 KOK = Path(__file__).resolve().parents[2]
 
@@ -66,7 +67,8 @@ secilen = st.multiselect("Grafikte gösterilecek tahminler", list(tahminler),
                          default=["Taban: doluluk değişmez", "Doğrusal Regresyon", "XGBoost"])
 grafik = pd.DataFrame({"Gerçek": gercek.values, **{ad: tahminler[ad] for ad in secilen}}, index=hedef_tarih)
 grafik.index.name = "Tarih"
-st.line_chart(grafik, y_label="Toplam doluluk (%)")
+turkce_cizgi_grafik(grafik, "Toplam doluluk (%)")
+
 
 # --- Erken uyarı ---
 st.header("Erken Uyarı Sistemi")

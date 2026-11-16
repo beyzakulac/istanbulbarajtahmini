@@ -70,4 +70,4 @@ st.dataframe(sonuc.style.format("%{:.1f}"), width="content")
 detay = pd.DataFrame({"2022": yillik[2022], "Gerçek 2023": gercek, "Taban tahmini": yillik[2022], "Trend tahmini": trend})
 st.dataframe(detay.loc[[ilce]].style.format("{:.2f}"), width="stretch")
 
-st.caption("Veriseti İBB Açık Veri Portalı'dan alınmıştır. Grafiklerde milyon m3 kullanılmıştır.")
+st.caption("Veri seti İBB Açık Veri Portalı'ndan alınmıştır.")
