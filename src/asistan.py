@@ -28,6 +28,10 @@ Kurallar:
 - Sayıları ASLA kendin uydurma; her sayıyı araçlardan al. Gerekirse birden fazla araç çağır.
 - Veri {ILK_TARIH} ile {SON_TARIH} arasını kapsar. Bu aralık dışındaki tarihler için bunu kibarca söyle.
 - Tahmin {UFUK} gün sonrası içindir. Modeller 2011-2022 ile eğitildi, 2023 hiç görülmemiş test yılıdır.
+- Yılı yazılmamış tarihleri (ör. '4 Haziran') verinin son yılı olan 2023'e göre yorumla ve bunu cevapta söyle.
+- Model ilçe bazında baraj doluluğu bilmez: barajlar şehrin tamamına su verir. İlçe sorulursa bunu açıkla ve İstanbul toplamıyla cevap ver.
+- Kullanıcı model adı söylemezse tahminde HER ZAMAN model="XGBoost" kullan.
+- Tarihleri araçlara her zaman YYYY-AA-GG biçiminde gönder.
 - Tarih belirtilmezse {SON_TARIH[:4]} yılının son verili gününü (araçların varsayılanı) kullan.
 - Cevabı kısa, anlaşılır Türkçe ile ver; doluluğu yüzde (%) olarak yaz, hangi aracı kullandığını tek cümleyle belirt.
 - Su yönetimi önerisi istenirse genel ve sorumlu öneriler ver (tasarruf, izleme), resmi karar gibi sunma.
@@ -165,26 +169,50 @@ class BarajAraclari:
 
 
 # ---------------------------------------------------------------- Gemini agent
-def gemini_cevap(araclar, gecmis, soru, anahtar):
+def gemini_cevap(araclar, gecmis, soru, anahtar, sure_siniri=45):
     """Gemini'ye soruyu ve araçları verir; model araçları kendisi seçip çağırır (function calling).
-    gecmis: [{'rol': 'user'|'model', 'metin': ...}] önceki konuşma. Döner: (cevap, kullanılan model adı)."""
+    gecmis: [{'rol': 'user'|'model', 'metin': ...}] önceki konuşma. Döner: (cevap, kullanılan model adı).
+    Toplam süre 'sure_siniri' saniyeyi geçerse hata verir (panel de kural tabanlı moda geçer)."""
+    import concurrent.futures
+    import time
+
     from google import genai
     from google.genai import types
 
-    istemci = genai.Client(api_key=anahtar)
+    # Her istek en fazla 20 sn; kota/bağlantı hatasında tekrar tekrar denemesin (yoksa dakikalarca bekler).
+    istemci = genai.Client(api_key=anahtar.strip(), http_options=types.HttpOptions(
+        timeout=20_000, retry_options=types.HttpRetryOptions(attempts=1)))
     icerik = [types.Content(role=m["rol"], parts=[types.Part(text=m["metin"])]) for m in gecmis]
     icerik.append(types.Content(role="user", parts=[types.Part(text=soru)]))
     ayar = types.GenerateContentConfig(
         system_instruction=SISTEM_TALIMATI, tools=araclar.araclar(), temperature=0.2,
         automatic_function_calling=types.AutomaticFunctionCallingConfig(maximum_remote_calls=6))
-    son_hata = None
-    for model in GEMINI_MODELLERI:
-        try:
-            yanit = istemci.models.generate_content(model=model, contents=icerik, config=ayar)
-            return yanit.text, model
-        except Exception as e:                       # model adı yoksa / kota dolduysa sıradakini dene
-            son_hata = e
-    raise RuntimeError(f"Gemini'ye ulaşılamadı: {son_hata}")
+
+    bitis = time.time() + sure_siniri
+    hatalar = []
+    havuz = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    try:
+        for model in GEMINI_MODELLERI:
+            kalan = bitis - time.time()
+            if kalan <= 0:
+                break
+            is_ = havuz.submit(istemci.models.generate_content, model=model, contents=icerik, config=ayar)
+            try:
+                yanit = is_.result(timeout=kalan)
+                return yanit.text, model
+            except concurrent.futures.TimeoutError:
+                hatalar.append(f"{model}: {sure_siniri} sn içinde cevap gelmedi")
+                break
+            except Exception as e:                   # model adı yoksa / kota dolduysa sıradakini dene
+                mesaj = str(e)
+                print(f"[Baraj Asistanı] {model} hatası: {mesaj[:300]}")
+                if "API key not valid" in mesaj or "API_KEY_INVALID" in mesaj:
+                    raise RuntimeError("Gemini anahtarı geçersiz (secrets.toml içindeki anahtarı kontrol edin).")
+                kisa = "kota doldu (429)" if "429" in mesaj or "RESOURCE_EXHAUSTED" in mesaj else mesaj[:120]
+                hatalar.append(f"{model}: {kisa}")
+    finally:
+        havuz.shutdown(wait=False, cancel_futures=True)
+    raise RuntimeError("Gemini'ye ulaşılamadı. " + " | ".join(hatalar))
 
 
 # ---------------------------------------------------------------- kural tabanlı yedek
@@ -193,20 +221,57 @@ AYLAR = {"ocak": 1, "şubat": 2, "subat": 2, "mart": 3, "nisan": 4, "mayıs": 5,
          "aralık": 12, "aralik": 12}
 
 
+# İstanbul ilçeleri (Büyükçekmece hem ilçe hem baraj adı olduğu için listede yok)
+ILCELER = ["adalar", "arnavutköy", "ataşehir", "avcılar", "bahçelievler", "bakırköy", "bayrampaşa", "bağcılar",
+           "başakşehir", "beykoz", "beylikdüzü", "beyoğlu", "beşiktaş", "esenler", "esenyurt", "eyüpsultan", "fatih",
+           "gaziosmanpaşa", "güngören", "küçükçekmece", "kadıköy", "kartal", "kağıthane", "maltepe", "pendik",
+           "sancaktepe", "sarıyer", "sultanbeyli", "sultangazi", "silivri", "tuzla", "zeytinburnu", "çatalca",
+           "çekmeköy", "ümraniye", "üsküdar", "şile", "şişli"]
+
+
+def kucult(metin):
+    """Türkçe küçük harf (İ->i, I->ı)."""
+    return metin.replace("İ", "i").replace("I", "ı").lower()
+
+
 def tarihleri_bul(metin):
-    """Metindeki tarihleri bulur: 01.03.2023, 2023-03-01, '1 Mart 2023'."""
-    m = metin.lower()
+    """Metindeki tarihleri bulur: 01.03.2023, 2023-03-01, '1 Mart 2023', '4 Haziran' (yıl yoksa 2023).
+    Döner: (tarih listesi, yıl varsayıldı mı)."""
+    m = kucult(metin)
     bulunan = re.findall(r"\b(\d{4}-\d{2}-\d{2}|\d{1,2}[./]\d{1,2}[./]\d{4})\b", m)
-    for gun, ay, yil in re.findall(r"\b(\d{1,2})\s+([a-zçğıöşü]+)\s+(\d{4})\b", m):
-        if ay in AYLAR:
-            bulunan.append(f"{yil}-{AYLAR[ay]:02d}-{int(gun):02d}")
-    return [str(_tarih(t, SON_TARIH).date()) for t in bulunan]
+    yil_varsayildi = False
+    ay_desen = "|".join(sorted(AYLAR, key=len, reverse=True))
+    for gun, ay, yil in re.findall(rf"\b(\d{{1,2}})\s+({ay_desen})[a-zçğıöşü']*(?:\s+(\d{{4}}))?", m):
+        if not yil:
+            yil, yil_varsayildi = SON_TARIH[:4], True
+        bulunan.append(f"{yil}-{AYLAR[ay]:02d}-{int(gun):02d}")
+    tarihler = []
+    for t in bulunan:
+        try:
+            tarihler.append(str(_tarih(t, SON_TARIH).date()))
+        except ValueError:
+            pass
+    return tarihler, yil_varsayildi
 
 
 def kural_tabanli_cevap(araclar, soru):
     """LLM olmadan: anahtar kelimeye göre araç seçer, sonucu şablonla yazar."""
-    s = soru.lower()
-    tarihler = tarihleri_bul(soru)
+    s = kucult(soru)
+    tarihler, yil_varsayildi = tarihleri_bul(soru)
+    notlar = []
+    ilce = next((i for i in ILCELER if re.search(rf"\b{i}", s)), None)
+    if ilce:
+        notlar.append(f"ℹ️ {ilce.capitalize()} için ayrı baraj doluluğu yok: İstanbul barajları şehrin tamamına su verir, "
+                      "bu yüzden cevap İstanbul toplamı içindir.")
+    if yil_varsayildi:
+        notlar.append(f"ℹ️ Yıl yazılmadığı için verinin son yılı ({SON_TARIH[:4]}) kullanıldı; veri {SON_TARIH[:4]} sonuna kadar.")
+    elif not tarihler and any(k in s for k in ["bugün", "bugun", "şu an", "şuan", "suan", "şimdi", "simdi"]):
+        notlar.append(f"ℹ️ Elimizdeki veri {SON_TARIH[:4]} sonunda bittiği için en son verili gün kullanıldı.")
+    cevap = _kural_cevap(araclar, s, tarihler)
+    return "\n\n".join(notlar + [cevap])
+
+
+def _kural_cevap(araclar, s, tarihler):
     yil = re.search(r"\b(20[12]\d)\b", s)
     esik = re.search(r"%\s*(\d+)|(\d+)\s*%", s)
 
@@ -252,6 +317,10 @@ def kural_tabanli_cevap(araclar, soru):
     r = araclar.doluluk_getir(tarih)
     if "hata" in r:
         return f"Üzgünüm: {r['hata']}"
+    baraj = next((b for b in r["barajlar_yuzde"] if kucult(b)[:5] in s), None)
+    if baraj:
+        return (f"{r['tarih']} tarihinde **{baraj}** barajının doluluğu **%{r['barajlar_yuzde'][baraj]}**. "
+                f"İstanbul toplamı ise %{r['toplam_doluluk_yuzde']}.")
     en_dolu = max(r["barajlar_yuzde"], key=r["barajlar_yuzde"].get)
     en_bos = min(r["barajlar_yuzde"], key=r["barajlar_yuzde"].get)
     return (f"{r['tarih']} tarihinde İstanbul barajlarının toplam doluluğu **%{r['toplam_doluluk_yuzde']}**. "
