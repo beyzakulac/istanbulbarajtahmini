@@ -5,3 +5,5 @@ data/processed/
 *.pkl
 .DS_Store
 venv/
+# Gemini API anahtarı (asla GitHub'a gönderme)
+.streamlit/

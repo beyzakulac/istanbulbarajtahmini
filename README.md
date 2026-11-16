@@ -19,3 +19,15 @@ pip install -r requirements.txt
 - `notebooks/` keşif ve deneyler
 - `src/` ortak kullanılan kod (temizleme, öznitelikler, değerlendirme)
 - `app/` Streamlit paneli
+
+## Baraj Asistanı (AI agent)
+`app/pages/2_Baraj_Asistani.py` + `src/asistan.py`. Gemini dil modeli soruyu okur, hangi aracı
+(doluluk_getir, tahmin_yap, uyari_kontrol, donem_ozeti, model_basarisi) çağıracağına kendisi karar verir
+(function calling), sonucu Türkçe açıklar. Anahtar yoksa kural tabanlı yedek mod çalışır.
+
+Gemini anahtarı: https://aistudio.google.com/apikey adresinden ücretsiz alınır ve
+`.streamlit/secrets.toml` dosyasına yazılır (bu dosya git'e girmez):
+```toml
+GEMINI_API_KEY = "buraya-anahtar"
+```
+Çalıştırma: `streamlit run app/app.py` → soldaki menüden **Baraj Asistanı**.
