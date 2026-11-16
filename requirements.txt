@@ -8,3 +8,4 @@ tensorflow
 streamlit
 requests
 jupyter
+google-genai
