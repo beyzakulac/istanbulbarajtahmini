@@ -1,4 +1,3 @@
-
 import sys
 from pathlib import Path
 
@@ -9,6 +8,7 @@ import pandas as pd
 import streamlit as st
 
 from src.arkaplan import arka_plan
+from src.grafik import turkce_cizgi_grafik
 
 KOK = Path(__file__).resolve().parents[1]
 
@@ -21,33 +21,49 @@ st.title("İstanbul Baraj Doluluk ve Su Tüketimi Paneli")
 
 
 @st.cache_data
-def yillik_tuketim():
-    """2011-2022 yıllık ilçe tüketimi (temizlenmiş veriden) + 2023 gerçek değerleri (aylık dosyanın toplamı)."""
-    gunluk = pd.read_csv(KOK / "data" / "temizlenmis_gunluk_tuketim.csv", parse_dates=["Tarih"])
-    yillik = gunluk.groupby(["İlçe", gunluk["Tarih"].dt.year])["Gunluk_Tuketim_m3"].sum().unstack()
-    yillik.index = yillik.index.str.strip()
-
+def aylik_2023():
+    """2023 aylık ilçe tüketimi (İBB 2023 dosyasında her ay ayrı sütun)."""
     aylik = pd.read_excel(KOK / "data" / "raw" / "ilce-baznda-su-tuketim-miktar-2023.xlsx")
     aylik.columns = [str(c).strip() for c in aylik.columns]
     aylik = aylik.dropna(subset=["İLÇELER"])
     aylik["İLÇELER"] = aylik["İLÇELER"].str.strip().replace(AD_DUZELT)
     aylik = aylik[aylik["İLÇELER"] != "GENEL TOPLAM"].set_index("İLÇELER")
-    yillik[2023] = aylik[[str(a) for a in range(202301, 202313)]].sum(axis=1)
+    return aylik[[str(a) for a in range(202301, 202313)]]
+
+
+@st.cache_data
+def yillik_tuketim():
+    """2011-2022 yıllık ilçe tüketimi (temizlenmiş veriden) + 2023 gerçek değerleri (aylık dosyanın toplamı)."""
+    gunluk = pd.read_csv(KOK / "data" / "temizlenmis_gunluk_tuketim.csv", parse_dates=["Tarih"])
+    yillik = gunluk.groupby(["İlçe", gunluk["Tarih"].dt.year])["Gunluk_Tuketim_m3"].sum().unstack()
+    yillik.index = yillik.index.str.strip()
+    yillik[2023] = aylik_2023().sum(axis=1)
     return yillik / 1e6   
 
 
 yillik = yillik_tuketim()
+aylik = aylik_2023() / 1e6
 YILLAR = list(range(2011, 2023))
 
 
 
-# ---  Seçilen ilçe için yıllık tüketim miktarı ---
-st.header(" İlçe Bazındaki Yıllık Tüketim Miktarı")
+# ---  Seçilen ilçe için yıllık / aylık tüketim miktarı ---
+st.header(" İlçe Bazındaki Tüketim Miktarı")
 ilce = st.selectbox("İlçe seçin", sorted(yillik.index), index=sorted(yillik.index).index("ADALAR"))
-seri = yillik.loc[ilce, YILLAR + [2023]].rename("Tüketim (milyon m³)")
-seri.index = pd.to_datetime([f"{y}-01-01" for y in seri.index])
-seri.index.name = "Yıl"
-st.line_chart(seri, y_label="Milyon m³")
+gorunum = st.radio("Görünüm", ["Yıllık (2011–2023)", "Aylık (2023)"], horizontal=True)
+
+if gorunum.startswith("Yıllık"):
+    seri = yillik.loc[ilce, YILLAR + [2023]].rename("Tüketim (milyon m³)")
+    seri.index = pd.to_datetime([f"{y}-01-01" for y in seri.index])
+    seri.index.name = "Yıl"
+    turkce_cizgi_grafik(seri, "Milyon m³", yillik=True)
+else:
+    seri = aylik.loc[ilce].rename("Tüketim (milyon m³)")
+    seri.index = pd.to_datetime(seri.index, format="%Y%m")
+    seri.index.name = "Ay"
+    turkce_cizgi_grafik(seri, "Milyon m³", aylik=True)
+    st.caption("Aylık veri İBB'de sadece 2023 için yayımlanıyor; 2011–2022 yılları yalnızca yıllık toplam olarak var.")
+
 artis = (yillik.loc[ilce, 2022] / yillik.loc[ilce, 2011] - 1) * 100
 c1, c2 = st.columns(2)
 c1.metric("2022 tüketimi", f"{yillik.loc[ilce, 2022]:.2f} milyon m³")
