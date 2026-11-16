@@ -1,24 +1,21 @@
-"""Baraj Asistanı: tahmin modelini araç olarak kullanan yapay zekâ agent'ı (Sinem)."""
+
 import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # repo kökü: src/ içe aktarılabilsin
-
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  
 import pandas as pd
 import streamlit as st
 
 from src.asistan import BarajAraclari, gemini_cevap, kural_tabanli_cevap
+from src.arkaplan import arka_plan
 
 KOK = Path(__file__).resolve().parents[2]
 
-st.set_page_config(page_title="Baraj Asistanı", page_icon="🤖", layout="wide")
-st.title("🤖 Baraj Asistanı (AI Agent)")
-st.markdown(
-    "Sorunuzu Türkçe yazın. Asistan soruyu anlar, **hangi aracı kullanacağına kendisi karar verir** "
-    "(doluluk verisi, 30 gün tahmini, erken uyarı, dönem istatistikleri, model başarısı), aracı çalıştırır ve "
-    "sonucu açıklar. Veri **2011–2023** arasını kapsar."
-)
+st.set_page_config(page_title="Baraj Asistanı", layout="wide")
+arka_plan("kiz_kulesi.jpg")
+st.title("Tahmin Ajanı ")
+
 
 
 @st.cache_resource
@@ -27,7 +24,7 @@ def araclari_hazirla():
 
 
 def anahtar_bul():
-    """Gemini anahtarı: önce .streamlit/secrets.toml, sonra ortam değişkeni, sonra yan menü."""
+
     try:
         if "GEMINI_API_KEY" in st.secrets:
             return st.secrets["GEMINI_API_KEY"]
@@ -55,7 +52,7 @@ for m in st.session_state.mesajlar:
     with st.chat_message("user" if m["rol"] == "user" else "assistant"):
         st.markdown(m["metin"])
         if m.get("adimlar"):
-            with st.expander("Agent'ın çağırdığı araçlar"):
+            with st.expander("Agent'ın hesaplarken kullandığı araçlar:"):
                 st.json(m["adimlar"])
 
 soru = st.chat_input("Örneğin: 1 Haziran 2023'ten 30 gün sonra doluluk ne olur?")
@@ -64,7 +61,7 @@ if soru:
         st.markdown(soru)
     araclar.kayit = []
     with st.chat_message("assistant"):
-        with st.spinner("Düşünüyor, araç çağırıyor..."):
+        with st.spinner("Düşünüyor, aracı çağırıyor..."):
             if mod.startswith("Gemini") and anahtar:
                 gecmis = [{"rol": m["rol"], "metin": m["metin"]} for m in st.session_state.mesajlar[-10:]]
                 try:
