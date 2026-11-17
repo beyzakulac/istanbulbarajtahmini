@@ -57,6 +57,9 @@ tablo = pd.DataFrame({ad: metrikler(gercek, t) for ad, t in tahminler.items()}).
 tablo.columns = ["MAE", "RMSE", "R²"]
 st.dataframe(tablo.style.format("{:.2f}").highlight_min(subset=["MAE"], color="#c6efce"),
              width="stretch")
+st.subheader("Modellerin 2023 hatası (MAE, düşük daha iyi)")
+st.bar_chart(tablo["MAE"].sort_values(), horizontal=True,
+             x_label="MAE (yüzde puan)", y_label="Model")
 
 lstm_dosya = KOK / "sonuclar" / "karsilastirma_2023.csv"
 if lstm_dosya.exists():
