@@ -82,8 +82,11 @@ mape = lambda t: (abs(t - gercek) / gercek).mean() * 100
 sonuc = pd.DataFrame({"Ortalama yüzde hata (MAPE)": [mape(yillik[2022]), mape(trend)]},
                      index=["Taban: 2023 = 2022", "Doğrusal trend"])
 st.dataframe(sonuc.style.format("%{:.1f}"), width="content")
+st.bar_chart(sonuc["Ortalama yüzde hata (MAPE)"], horizontal=True,
+             x_label="Ortalama yüzde hata (%)", y_label="Yöntem")
 
 detay = pd.DataFrame({"2022": yillik[2022], "Gerçek 2023": gercek, "Taban tahmini": yillik[2022], "Trend tahmini": trend})
 st.dataframe(detay.loc[[ilce]].style.format("{:.2f}"), width="stretch")
+st.bar_chart(detay.loc[ilce], x_label="", y_label="Milyon m³")
 
 st.caption("Veri seti İBB Açık Veri Portalı'ndan alınmıştır.")
