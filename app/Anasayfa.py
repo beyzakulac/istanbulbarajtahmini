@@ -8,7 +8,7 @@ import pandas as pd
 import streamlit as st
 
 from src.arkaplan import arka_plan
-from src.grafik import turkce_cizgi_grafik
+from src.grafik import cubuk_grafik, turkce_cizgi_grafik
 
 KOK = Path(__file__).resolve().parents[1]
 
@@ -82,11 +82,10 @@ mape = lambda t: (abs(t - gercek) / gercek).mean() * 100
 sonuc = pd.DataFrame({"Ortalama yüzde hata (MAPE)": [mape(yillik[2022]), mape(trend)]},
                      index=["Taban: 2023 = 2022", "Doğrusal trend"])
 st.dataframe(sonuc.style.format("%{:.1f}"), width="content")
-st.bar_chart(sonuc["Ortalama yüzde hata (MAPE)"], horizontal=True,
-             x_label="Ortalama yüzde hata (%)", y_label="Yöntem")
+cubuk_grafik(sonuc["Ortalama yüzde hata (MAPE)"], "Ortalama yüzde hata (%)", yatay=True, bicim=".1f", onek="%")
 
 detay = pd.DataFrame({"2022": yillik[2022], "Gerçek 2023": gercek, "Taban tahmini": yillik[2022], "Trend tahmini": trend})
 st.dataframe(detay.loc[[ilce]].style.format("{:.2f}"), width="stretch")
-st.bar_chart(detay.loc[ilce], x_label="", y_label="Milyon m³")
+cubuk_grafik(detay.loc[ilce], "Tüketim (milyon m³)", vurgula="Gerçek 2023")
 
 st.caption("Veri seti İBB Açık Veri Portalı'ndan alınmıştır.")
