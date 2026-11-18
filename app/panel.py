@@ -9,6 +9,21 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # repo kökü: src
 
 st.set_page_config(page_title="İstanbul Su Paneli", page_icon="💧", layout="wide")
 
+st.markdown(
+    """
+    <style>
+    [data-testid="stTopNav"] {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        width: max-content;
+        gap: 2.5rem;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 sayfalar = [
     st.Page("Anasayfa.py", title="Anasayfa", icon="🏠", default=True),
     st.Page("pages/1_Baraj_Doluluk_Tahmini.py", title="Baraj Doluluk Tahmini", icon="🌊"),
