@@ -10,6 +10,7 @@ Gemini anahtarı yoksa ya da internet yoksa 'kural tabanlı yedek mod' devreye g
 sorudaki kelimelere ve tarihe bakarak aynı araçları çağırır.
 """
 import re
+from difflib import SequenceMatcher
  
 import pandas as pd
  
@@ -286,9 +287,22 @@ def sade(metin):
  
  
 def baraj_bul(metin):
-    """Metindeki baraj adını bulur; yoksa boş metin."""
-    m = sade(metin)
-    return next((b for b in KAPASITE if sade(b)[:5] in m), "")
+    """Metindeki baraj adını bulur; küçük yazım hatalarını da tolere eder (ıstırancalar -> Istrancalar).
+    Bulamazsa boş metin döner."""
+    tek = re.findall(r"[a-z]+", sade(metin))
+    kelimeler = tek + [a + b for a, b in zip(tek, tek[1:])]   # "büyük çekmece", "kazan dere" gibi ayrı yazımlar
+    en_iyi, en_iyi_oran = "", 0.0
+    for b in KAPASITE:
+        ad = sade(b)
+        for k in kelimeler:
+            if len(k) < 5:
+                continue
+            if k.startswith(ad[:6]):
+                return b
+            oran = SequenceMatcher(None, k[:len(ad) + 1], ad).ratio()   # ek almış hâli de (ömerlinin) karşılaştır
+            if oran > en_iyi_oran:
+                en_iyi, en_iyi_oran = b, oran
+    return en_iyi if en_iyi_oran >= 0.82 else ""
  
  
 def tarihleri_bul(metin):

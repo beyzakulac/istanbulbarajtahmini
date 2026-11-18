@@ -10,11 +10,9 @@ st.set_page_config(page_title="İstanbul Su Paneli", layout="wide")
 st.markdown(
     """
     <style>
-    [data-testid="stTopNav"] {
-        position: absolute;
-        left: 50%;
-        transform: translateX(-50%);
-        width: max-content;
+    :has(> div > div > [data-testid="stTopNavLinkContainer"]) {
+        flex: 1;
+        justify-content: center;
         gap: 2.5rem;
     }
     </style>
