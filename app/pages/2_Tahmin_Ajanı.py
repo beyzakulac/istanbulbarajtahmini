@@ -12,7 +12,7 @@ from src.arkaplan import arka_plan
 
 KOK = Path(__file__).resolve().parents[2]
 
-st.set_page_config(page_title="Baraj Asistanı", layout="wide")
+st.set_page_config(page_title="Tahmin Ajanı", layout="wide")
 arka_plan("kiz_kulesi.jpg")
 st.title("Tahmin Ajanı ")
 
