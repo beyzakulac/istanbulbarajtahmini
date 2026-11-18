@@ -45,11 +45,7 @@ def yan_menu_arka_plan(dosya_adi="kopru_gece.jpg"):
         [data-testid="stSidebarNav"] a[aria-current="page"], [data-testid="stSidebarNav"] a:hover {{
             background: rgba(255, 255, 255, 0.18) !important;
         }}
-        [data-testid="stSidebar"] input, [data-testid="stSidebar"] button {{
-            color: #111 !important;
-            text-shadow: none;
-        }}
-        [data-testid="stSidebar"] button p {{ color: #111 !important; text-shadow: none; }}
+        [data-testid="stSidebar"] button p, [data-testid="stSidebar"] input {{ text-shadow: none; }}
         </style>
         """,
         unsafe_allow_html=True,
@@ -72,12 +68,24 @@ def arka_plan(dosya_adi):
             background-position: center;
             background-attachment: fixed;
         }}
-        [data-testid="stHeader"], [data-testid="stBottom"] > div {{ background: transparent; }}
+        [data-testid="stHeader"] {{
+            background: rgba(8, 14, 30, 0.82);
+            backdrop-filter: blur(6px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }}
+        [data-testid="stHeader"] a, [data-testid="stHeader"] span, [data-testid="stHeader"] p {{
+            color: #f5f7fa !important;
+            font-weight: 600;
+        }}
+        [data-testid="stHeader"] a[aria-current="page"] {{
+            border-bottom: 3px solid #5fb3e8;
+        }}
+        [data-testid="stBottom"] > div {{ background: transparent; }}
         [data-testid="stMainBlockContainer"], .block-container {{
             background: {zemin};
             border-radius: 16px;
             padding: 2rem 2.5rem !important;
-            margin-top: 3rem;
+            margin-top: 4.5rem;
             margin-bottom: 2rem;
         }}
         </style>
